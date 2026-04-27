@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Watching - XNHAU</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <style>
+        :root { --primary: #ff8866; --bg: #0c0d12; --surface: #14161f; }
+        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; user-select: none; }
+        
+        /* Nav */
+        .header-nav { width: 100%; padding: 20px 40px; box-sizing: border-box; }
+        .back-link { color: #888; text-decoration: none; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .back-link:hover { color: var(--primary); transform: translateX(-5px); }
+
+        /* KÍCH THƯỚC VIDEO: Fix 65% trên PC */
+        .container { 
+            width: 95%; 
+            max-width: 850px; /* Giới hạn chiều rộng cố định để không bị tràn */
+            margin: 10px auto; 
+        }
+
+        h1 { font-size: 20px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 15px; }
+
+        .video-wrapper { 
+            border-radius: 12px; overflow: hidden; background: #000; border: 1px solid #222;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        /* Phần Video liên quan */
+        .related-section { width: 95%; max-width: 850px; margin-top: 40px; padding-bottom: 50px; }
+        .related-title { font-size: 18px; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
+        .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        
+        .rel-card { background: var(--surface); border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #222; transition: 0.3s; }
+        .rel-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .rel-card img { width: 100%; height: 110px; object-fit: cover; }
+        .rel-card p { padding: 8px; margin: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        @media (max-width: 768px) {
+            .container, .related-section { max-width: 100%; }
+            .related-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Plyr Custom */
+        .plyr { --plyr-color-main: var(--primary); border-radius: 12px; }
+    </style>
+
+    <script>
+        /* --- ANTI-DEBUG NÂNG CẤP --- */
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        
+        // Phát hiện mở F12
+        setInterval(function() {
+            const startTime = performance.now();
+            debugger; // Dòng này sẽ làm treo trang nếu mở DevTools
+            const endTime = performance.now();
+            if (endTime - startTime > 100) {
+                alert("Cảnh báo: Hành vi bất thường bị phát hiện!");
+                window.location.href = "about:blank"; // Đẩy ra trang trắng
+            }
+        }, 500);
+
+        // Chặn phím tắt
+        window.addEventListener('keydown', function(e) {
+            if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <div class="header-nav">
+        <a href="trangchu.html" class="back-link">← QUAY LẠI</a>
+    </div>
+
+    <div class="container">
+        <h1 id="movie-title">Đang tải...</h1>
+        <div class="video-wrapper">
+            <video id="player" playsinline controls crossorigin="anonymous"></video>
+        </div>
+    </div>
+
+    <div class="related-section">
+        <div class="related-title">VIDEO LIÊN QUAN</div>
+        <div class="related-grid" id="related-grid"></div>
+    </div>
+
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+    <script>
+        const player = new Plyr('#player', { autoplay: false });
+        const countriesArr = ["Việt Nam", "Korean", "Trung Quốc", "Âu/Mỹ", "Nhật Bản"];
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const idVd = params.get('id');
+            if (!idVd) return;
+
+            try {
+                // 1. Lấy thông tin video hiện tại
+                const res = await fetch(`http://127.0.0.1:8000/api/get-link/${idVd}`);
+                const data = await res.json();
+
+                if (data.link_goc) {
+                    document.getElementById('movie-title').innerText = data.title;
+                    
+                    let poster = data.image || '';
+                    if (poster && !poster.includes('catbox.moe')) {
+                        poster = `http://127.0.0.1:8000/proxy-img?url=${encodeURIComponent(poster)}`;
+                    }
+
+                    player.source = {
+                        type: 'video',
+                        sources: [{ src: `http://127.0.0.1:8000/proxy?url=${encodeURIComponent(data.link_goc)}`, type: 'video/mp4' }],
+                        poster: poster
+                    };
+
+                    // 2. Tải danh sách video liên quan (Cùng quốc gia)
+                    loadRelated(data.tags, idVd);
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadRelated(currentTags, currentId) {
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/videos');
+                const allVideos = await res.json();
+                
+                // Xác định quốc gia của phim hiện tại
+                const currentCountry = currentTags.find(t => countriesArr.includes(t));
+                
+                // Lọc video cùng quốc gia nhưng không trùng với video đang xem
+                const related = allVideos.filter(v => 
+                    v.id_vd !== currentId && 
+                    v.hag_tag && v.hag_tag.includes(currentCountry)
+                ).slice(0, 6); // Lấy tối đa 6 cái
+
+                const grid = document.getElementById('related-grid');
+                grid.innerHTML = related.map(v => {
+                    let img = v.image_vd;
+                    if (img && !img.includes('catbox.moe')) {
+                        img = `http://127.0.0.1:8000/proxy-img?url=${encodeURIComponent(img)}`;
+                    }
+                    return `
+                        <div class="rel-card" onclick="location.href='trangvideo.html?id=${v.id_vd}'">
+                            <img src="${img}">
+                            <p>${v.title}</p>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
