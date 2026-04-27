@@ -10,26 +10,17 @@
         :root { --primary: #ff8866; --bg: #0c0d12; --surface: #14161f; }
         body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; user-select: none; }
         
-        /* Nav */
+        /* Navigation */
         .header-nav { width: 100%; padding: 20px 40px; box-sizing: border-box; }
         .back-link { color: #888; text-decoration: none; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
         .back-link:hover { color: var(--primary); transform: translateX(-5px); }
 
-        /* KÍCH THƯỚC VIDEO: Fix 65% trên PC */
-        .container { 
-            width: 95%; 
-            max-width: 850px; 
-            margin: 10px auto; 
-        }
-
+        /* Video Container */
+        .container { width: 95%; max-width: 850px; margin: 10px auto; }
         h1 { font-size: 20px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 15px; }
+        .video-wrapper { border-radius: 12px; overflow: hidden; background: #000; border: 1px solid #222; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
 
-        .video-wrapper { 
-            border-radius: 12px; overflow: hidden; background: #000; border: 1px solid #222;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-        }
-
-        /* Phần Video liên quan */
+        /* Related Videos */
         .related-section { width: 95%; max-width: 850px; margin-top: 40px; padding-bottom: 50px; }
         .related-title { font-size: 18px; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
         .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
@@ -44,27 +35,16 @@
             .related-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
-        /* Plyr Custom */
+        /* Plyr Custom Color */
         .plyr { --plyr-color-main: var(--primary); border-radius: 12px; }
     </style>
 
     <script>
+        /* ANTI-DEBUG (Đã làm gọn để tránh treo script load dữ liệu) */
         document.addEventListener('contextmenu', e => e.preventDefault());
-        
-        setInterval(function() {
-            const startTime = performance.now();
-            debugger; 
-            const endTime = performance.now();
-            if (endTime - startTime > 100) {
-                alert("Cảnh báo: Hành vi bất thường bị phát hiện!");
-                window.location.href = "about:blank";
-            }
-        }, 500);
-
-        window.addEventListener('keydown', function(e) {
+        window.addEventListener('keydown', e => {
             if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
                 e.preventDefault();
-                return false;
             }
         });
     </script>
@@ -72,18 +52,18 @@
 <body>
 
     <div class="header-nav">
-        <a href="/" class="back-link">← QUAY LẠI</a>
+        <a href="/" class="back-link">← QUAY LẠI TRANG CHỦ</a>
     </div>
 
     <div class="container">
-        <h1 id="movie-title">Đang tải...</h1>
+        <h1 id="movie-title">Đang kết nối server...</h1>
         <div class="video-wrapper">
             <video id="player" playsinline controls crossorigin="anonymous"></video>
         </div>
     </div>
 
     <div class="related-section">
-        <div class="related-title">VIDEO LIÊN QUAN</div>
+        <div class="related-title">CÓ THỂ BẠN CŨNG THÍCH</div>
         <div class="related-grid" id="related-grid"></div>
     </div>
 
@@ -95,65 +75,81 @@
         async function init() {
             const params = new URLSearchParams(window.location.search);
             const idVd = params.get('id');
-            if (!idVd) return;
+            if (!idVd) {
+                document.getElementById('movie-title').innerText = "Không tìm thấy video!";
+                return;
+            }
 
             try {
-                // 1. Lấy thông tin video hiện tại - ĐÃ DÙNG ĐƯỜNG DẪN TƯƠNG ĐỐI
+                // Gọi API lấy link video (Sử dụng đường dẫn tương đối /api/...)
                 const res = await fetch(`/api/get-link/${idVd}`);
+                if (!res.ok) throw new Error("Server error");
                 const data = await res.json();
 
                 if (data.link_goc) {
                     document.getElementById('movie-title').innerText = data.title;
                     
+                    // Xử lý Poster qua proxy nếu cần
                     let poster = data.image || '';
                     if (poster && !poster.includes('catbox.moe')) {
-                        // SỬA: Đổi từ localhost sang /proxy-img
                         poster = `/proxy-img?url=${encodeURIComponent(poster)}`;
                     }
 
+                    // Thiết lập nguồn video qua Proxy Backend
                     player.source = {
                         type: 'video',
                         sources: [{ 
-                            // SỬA: Đổi từ localhost sang /proxy
                             src: `/proxy?url=${encodeURIComponent(data.link_goc)}`, 
                             type: 'video/mp4' 
                         }],
                         poster: poster
                     };
 
+                    // Tải video liên quan
                     loadRelated(data.tags, idVd);
+                } else {
+                    document.getElementById('movie-title').innerText = "Video không tồn tại!";
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error("Lỗi tải video:", err);
+                document.getElementById('movie-title').innerText = "Lỗi kết nối máy chủ!";
+            }
         }
 
         async function loadRelated(currentTags, currentId) {
             try {
-                // SỬA: Đổi từ localhost sang /api/videos
                 const res = await fetch('/api/videos');
                 const allVideos = await res.json();
                 
-                const currentCountry = currentTags.find(t => countriesArr.includes(t));
+                // Tìm quốc gia để lọc phim liên quan
+                const currentCountry = currentTags.find(t => countriesArr.includes(t)) || "";
                 
                 const related = allVideos.filter(v => 
-                    v.id_vd !== currentId && 
+                    v.id_vd.toString() !== currentId.toString() && 
                     v.hag_tag && v.hag_tag.includes(currentCountry)
                 ).slice(0, 6);
 
                 const grid = document.getElementById('related-grid');
+                if (related.length === 0) {
+                    grid.innerHTML = "<p>Không có video liên quan.</p>";
+                    return;
+                }
+
                 grid.innerHTML = related.map(v => {
                     let img = v.image_vd;
                     if (img && !img.includes('catbox.moe')) {
-                        // SỬA: Đổi từ localhost sang /proxy-img
                         img = `/proxy-img?url=${encodeURIComponent(img)}`;
                     }
                     return `
                         <div class="rel-card" onclick="location.href='/video?id=${v.id_vd}'">
-                            <img src="${img}">
+                            <img src="${img}" onerror="this.src='https://placehold.co/300x180?text=XNHAU'">
                             <p>${v.title}</p>
                         </div>
                     `;
                 }).join('');
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error("Lỗi tải video liên quan:", e); 
+            }
         }
 
         window.onload = init;

@@ -3,7 +3,7 @@ import os
 import httpx
 from datetime import datetime
 from fastapi import FastAPI, Request, Query, Response
-from fastapi.responses import StreamingResponse, FileResponse # Thêm FileResponse để hiện HTML
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="XNHAU API Server")
@@ -20,7 +20,6 @@ DATA_FILE = "trang_source.json"
 IP_LOG_FILE = "ip_pl.txt"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
-# --- PHẦN THÊM ĐỂ HIỆN GIAO DIỆN (KHÔNG SỬA LOGIC CŨ) ---
 @app.get("/")
 async def read_index():
     return FileResponse("trangchu.html")
@@ -28,39 +27,38 @@ async def read_index():
 @app.get("/video")
 async def read_video():
     return FileResponse("trangvideo.html")
-# -------------------------------------------------------
 
 def get_local_data():
-    if not os.path.exists(DATA_FILE): return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    if not os.path.exists(DATA_FILE):
+        print(f"LỖI: Không tìm thấy file {DATA_FILE}")
+        return []
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"LỖI đọc JSON: {e}")
+        return []
 
-# API Lấy danh sách video + Logic lọc IP trùng
 @app.get("/api/videos")
 async def get_videos(request: Request):
-    # 1. Lấy IP người dùng
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(',')[0]
-    
-    # 2. Kiểm tra xem IP đã tồn tại trong file chưa
-    is_exists = False
-    if os.path.exists(IP_LOG_FILE):
-        with open(IP_LOG_FILE, "r", encoding="utf-8") as f:
-            log_content = f.read()
-            if f"IP: {client_ip}" in log_content:
-                is_exists = True
-
-    # 3. Nếu chưa tồn tại thì mới ghi
-    if not is_exists:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(IP_LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"[{now}] IP: {client_ip} | New User\n")
-        
+    try:
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(',')[0]
+        if os.path.exists(IP_LOG_FILE):
+            with open(IP_LOG_FILE, "r", encoding="utf-8") as f:
+                if f"IP: {client_ip}" not in f.read():
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with open(IP_LOG_FILE, "a", encoding="utf-8") as f_a:
+                        f_a.write(f"[{now}] IP: {client_ip} | New User\n")
+        else:
+             with open(IP_LOG_FILE, "a", encoding="utf-8") as f_a:
+                        f_a.write(f"Start Logging\n")
+    except: pass
     return get_local_data()
 
 @app.get("/api/get-link/{id_vd}")
 async def get_link(id_vd: str):
     videos = get_local_data()
-    video = next((v for v in videos if str(v["id_vd"]) == str(id_vd)), None)
+    video = next((v for v in videos if str(v.get("id_vd")) == str(id_vd)), None)
     if not video: return {"error": "404"}
     return {
         "link_goc": video.get("source_url"), 
