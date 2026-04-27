@@ -18,7 +18,7 @@
         /* KÍCH THƯỚC VIDEO: Fix 65% trên PC */
         .container { 
             width: 95%; 
-            max-width: 850px; /* Giới hạn chiều rộng cố định để không bị tràn */
+            max-width: 850px; 
             margin: 10px auto; 
         }
 
@@ -49,21 +49,18 @@
     </style>
 
     <script>
-        /* --- ANTI-DEBUG NÂNG CẤP --- */
         document.addEventListener('contextmenu', e => e.preventDefault());
         
-        // Phát hiện mở F12
         setInterval(function() {
             const startTime = performance.now();
-            debugger; // Dòng này sẽ làm treo trang nếu mở DevTools
+            debugger; 
             const endTime = performance.now();
             if (endTime - startTime > 100) {
                 alert("Cảnh báo: Hành vi bất thường bị phát hiện!");
-                window.location.href = "about:blank"; // Đẩy ra trang trắng
+                window.location.href = "about:blank";
             }
         }, 500);
 
-        // Chặn phím tắt
         window.addEventListener('keydown', function(e) {
             if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
                 e.preventDefault();
@@ -75,7 +72,7 @@
 <body>
 
     <div class="header-nav">
-        <a href="trangchu.html" class="back-link">← QUAY LẠI</a>
+        <a href="/" class="back-link">← QUAY LẠI</a>
     </div>
 
     <div class="container">
@@ -101,8 +98,8 @@
             if (!idVd) return;
 
             try {
-                // 1. Lấy thông tin video hiện tại
-                const res = await fetch(`http://127.0.0.1:8000/api/get-link/${idVd}`);
+                // 1. Lấy thông tin video hiện tại - ĐÃ DÙNG ĐƯỜNG DẪN TƯƠNG ĐỐI
+                const res = await fetch(`/api/get-link/${idVd}`);
                 const data = await res.json();
 
                 if (data.link_goc) {
@@ -110,16 +107,20 @@
                     
                     let poster = data.image || '';
                     if (poster && !poster.includes('catbox.moe')) {
-                        poster = `http://127.0.0.1:8000/proxy-img?url=${encodeURIComponent(poster)}`;
+                        // SỬA: Đổi từ localhost sang /proxy-img
+                        poster = `/proxy-img?url=${encodeURIComponent(poster)}`;
                     }
 
                     player.source = {
                         type: 'video',
-                        sources: [{ src: `http://127.0.0.1:8000/proxy?url=${encodeURIComponent(data.link_goc)}`, type: 'video/mp4' }],
+                        sources: [{ 
+                            // SỬA: Đổi từ localhost sang /proxy
+                            src: `/proxy?url=${encodeURIComponent(data.link_goc)}`, 
+                            type: 'video/mp4' 
+                        }],
                         poster: poster
                     };
 
-                    // 2. Tải danh sách video liên quan (Cùng quốc gia)
                     loadRelated(data.tags, idVd);
                 }
             } catch (err) { console.error(err); }
@@ -127,26 +128,26 @@
 
         async function loadRelated(currentTags, currentId) {
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/videos');
+                // SỬA: Đổi từ localhost sang /api/videos
+                const res = await fetch('/api/videos');
                 const allVideos = await res.json();
                 
-                // Xác định quốc gia của phim hiện tại
                 const currentCountry = currentTags.find(t => countriesArr.includes(t));
                 
-                // Lọc video cùng quốc gia nhưng không trùng với video đang xem
                 const related = allVideos.filter(v => 
                     v.id_vd !== currentId && 
                     v.hag_tag && v.hag_tag.includes(currentCountry)
-                ).slice(0, 6); // Lấy tối đa 6 cái
+                ).slice(0, 6);
 
                 const grid = document.getElementById('related-grid');
                 grid.innerHTML = related.map(v => {
                     let img = v.image_vd;
                     if (img && !img.includes('catbox.moe')) {
-                        img = `http://127.0.0.1:8000/proxy-img?url=${encodeURIComponent(img)}`;
+                        // SỬA: Đổi từ localhost sang /proxy-img
+                        img = `/proxy-img?url=${encodeURIComponent(img)}`;
                     }
                     return `
-                        <div class="rel-card" onclick="location.href='trangvideo.html?id=${v.id_vd}'">
+                        <div class="rel-card" onclick="location.href='/video?id=${v.id_vd}'">
                             <img src="${img}">
                             <p>${v.title}</p>
                         </div>
