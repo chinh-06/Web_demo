@@ -55,12 +55,13 @@
     </style>
 
     <script>
-        /* --- ANTI-DEBUG CHUYÊN NGHIỆP --- */
+        /* --- ANTI-DEBUG --- */
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.onkeydown = e => {
             if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) || (e.ctrlKey && e.keyCode == 85)) return false;
         };
-        setInterval(() => { (function() { (function a() { try { (function b(i) { if (('' + (i / i)).length !== 1 || i % 20 === 0) { (function() {}).constructor('debugger')(); } else { debugger; } b(++i); }(0)); } catch (e) { setTimeout(a, 5000); } })() })(); }, 1000);
+        // Tạm thời comment dòng debugger nếu bạn muốn tự kiểm tra lỗi F12, khi xong thì hãy mở lại
+        // setInterval(() => { (function() { (function a() { try { (function b(i) { if (('' + (i / i)).length !== 1 || i % 20 === 0) { (function() {}).constructor('debugger')(); } else { debugger; } b(++i); }(0)); } catch (e) { setTimeout(a, 5000); } })() })(); }, 1000);
     </script>
 </head>
 <body>
@@ -94,7 +95,7 @@
 
         function resetHome() {
             localStorage.clear();
-            window.location.href = 'trangchu.html';
+            window.location.href = '/'; // Sửa từ trangchu.html thành /
         }
 
         function toggleDropdown(id) {
@@ -112,9 +113,11 @@
             display.map(v => {
                 let img = v.image_vd;
                 if (img && !img.includes('catbox.moe')) {
-                    img = `http://127.0.0.1:8000/proxy-img?url=${encodeURIComponent(img)}`;
+                    // SỬA: Dùng đường dẫn tương đối /proxy-img
+                    img = `/proxy-img?url=${encodeURIComponent(img)}`;
                 }
-                return `<div class="card" onclick="location.href='trangvideo.html?id=${v.id_vd}'">
+                // SỬA: Chuyển hướng sang /video thay vì trangvideo.html
+                return `<div class="card" onclick="location.href='/video?id=${v.id_vd}'">
                             <img src="${img}" class="img-loading" onerror="this.src='https://placehold.co/600x400?text=XNHAU'" onload="this.classList.remove('img-loading')">
                             <div class="card-info"><h3>${v.title}</h3></div>
                         </div>`;
@@ -135,7 +138,7 @@
 
         function changePage(p) { 
             currentPage = p; 
-            localStorage.setItem('savedPage', p); // Ghi nhớ trang hiện tại
+            localStorage.setItem('savedPage', p); 
             renderGrid(); 
             window.scrollTo({ top: 0, behavior: 'smooth' }); 
         }
@@ -162,11 +165,11 @@
             const genreList = document.getElementById('genre-list');
             const countryList = document.getElementById('country-list');
             
-            // ĐỌC LẠI BỘ NHỚ
             const savedTag = localStorage.getItem('selectedTag') || 'all';
             currentPage = parseInt(localStorage.getItem('savedPage')) || 1;
 
             try {
+                // ĐÃ DÙNG đường dẫn tương đối /api/videos
                 const res = await fetch('/api/videos');
                 allVideos = await res.json();
                 
@@ -183,7 +186,6 @@
                     else genreList.appendChild(tagEl);
                 });
 
-                // ÉP TRẠNG THÁI UI
                 if (savedTag === 'all') {
                     document.getElementById('btn-all').classList.add('active');
                     currentFilteredVideos = allVideos;
