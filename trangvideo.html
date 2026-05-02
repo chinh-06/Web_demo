@@ -8,47 +8,59 @@
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <style>
         :root { --primary: #ff8866; --bg: #0c0d12; --surface: #14161f; }
-        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; user-select: none; }
+        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; user-select: none; }
         
-        /* Navigation */
-        .header-nav { width: 100%; padding: 20px 40px; box-sizing: border-box; }
-        .back-link { color: #888; text-decoration: none; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .header-nav { padding: 20px 40px; }
+        .back-link { color: #888; text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
         .back-link:hover { color: var(--primary); transform: translateX(-5px); }
 
-        /* Video Container */
-        .container { width: 95%; max-width: 850px; margin: 10px auto; }
-        h1 { font-size: 20px; margin-bottom: 5px; border-left: 4px solid var(--primary); padding-left: 15px; }
-        .view-info { color: #888; font-size: 13px; margin: 0 0 15px 15px; display: flex; align-items: center; gap: 5px; }
+        /* Bố cục chính: Video bên trái, Trending bên phải */
+        .main-layout { 
+            display: flex; 
+            max-width: 1300px; 
+            margin: 0 auto; 
+            padding: 0 20px; 
+            gap: 25px; 
+        }
 
-        .video-wrapper { border-radius: 12px; overflow: hidden; background: #000; border: 1px solid #222; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        /* Vùng Video (70%) */
+        .video-area { flex: 7; min-width: 0; }
+        h1 { font-size: 22px; margin: 15px 0 5px 0; border-left: 4px solid var(--primary); padding-left: 15px; }
+        .view-info { color: #888; font-size: 13px; margin: 0 0 15px 15px; }
+        .video-wrapper { border-radius: 12px; overflow: hidden; background: #000; border: 1px solid #222; }
 
-        /* Related Videos */
-        .related-section { width: 95%; max-width: 850px; margin-top: 40px; padding-bottom: 50px; }
-        .related-title { font-size: 18px; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
-        .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        /* Cột Trending bên phải (30%) */
+        .sidebar-area { flex: 3; min-width: 300px; }
+        .sidebar-title { font-size: 16px; color: var(--primary); font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .sidebar-list { display: flex; flex-direction: column; gap: 12px; }
         
-        .rel-card { background: var(--surface); border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #222; transition: 0.3s; position: relative; }
-        .rel-card:hover { border-color: var(--primary); transform: translateY(-5px); }
-        .rel-card img { width: 100%; height: 110px; object-fit: cover; }
-        .rel-card p { padding: 8px 8px 2px; margin: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
-        .rel-views { padding: 0 8px 8px; margin: 0; font-size: 11px; color: #666; }
+        /* Card nhỏ cho sidebar */
+        .side-card { display: flex; gap: 10px; background: var(--surface); border-radius: 8px; padding: 8px; cursor: pointer; border: 1px solid #222; transition: 0.2s; }
+        .side-card:hover { border-color: var(--primary); background: #1e2130; }
+        .side-card img { width: 120px; height: 70px; object-fit: cover; border-radius: 4px; }
+        .side-info { flex: 1; min-width: 0; }
+        .side-info p { margin: 0; font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .side-info span { font-size: 11px; color: #666; display: block; margin-top: 5px; }
 
-        @media (max-width: 768px) {
-            .container, .related-section { max-width: 100%; }
+        /* Vùng liên quan phía dưới */
+        .bottom-section { max-width: 1300px; margin: 40px auto; padding: 0 20px; border-top: 1px solid #222; pt-30px; }
+        .section-title { font-size: 18px; margin: 30px 0 20px 0; color: var(--primary); font-weight: bold; }
+        .related-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        
+        .rel-card { background: var(--surface); border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #222; transition: 0.3s; }
+        .rel-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .rel-card img { width: 100%; height: 130px; object-fit: cover; }
+        .rel-card p { padding: 10px; margin: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Mobile */
+        @media (max-width: 1000px) {
+            .main-layout { flex-direction: column; }
+            .sidebar-area { width: 100%; }
             .related-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         .plyr { --plyr-color-main: var(--primary); border-radius: 12px; }
     </style>
-
-    <script>
-        document.addEventListener('contextmenu', e => e.preventDefault());
-        window.addEventListener('keydown', e => {
-            if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
-                e.preventDefault();
-            }
-        });
-    </script>
 </head>
 <body>
 
@@ -56,41 +68,47 @@
         <a href="/" class="back-link">← QUAY LẠI TRANG CHỦ</a>
     </div>
 
-    <div class="container">
-        <h1 id="movie-title">Đang kết nối server...</h1>
-        <div class="view-info">
-            👁️ <span id="main-view-count">...</span> lượt xem
+    <div class="main-layout">
+        <!-- BÊN TRÁI: VIDEO CHÍNH -->
+        <div class="video-area">
+            <h1 id="movie-title">Đang kết nối...</h1>
+            <div class="view-info">👁️ <span id="main-view-count">...</span> lượt xem</div>
+            <div class="video-wrapper">
+                <video id="player" playsinline controls crossorigin="anonymous"></video>
+            </div>
         </div>
-        <div class="video-wrapper">
-            <video id="player" playsinline controls crossorigin="anonymous"></video>
+
+        <!-- BÊN PHẢI: TOP TRENDING -->
+        <div class="sidebar-area">
+            <div class="sidebar-title">🔥 XEM NHIỀU NHẤT</div>
+            <div id="trending-sidebar" class="sidebar-list">
+                <!-- Data từ API top-trending sẽ vào đây -->
+            </div>
         </div>
     </div>
 
-    <div class="related-section">
-        <div class="related-title">VIDEO XEM NHIỀU NHẤT</div>
+    <!-- PHÍA DƯỚI: CÙNG QUỐC GIA -->
+    <div class="bottom-section">
+        <div class="section-title">CÓ THỂ BẠN CŨNG THÍCH (CÙNG QUỐC GIA)</div>
         <div class="related-grid" id="related-grid"></div>
     </div>
 
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
     <script>
         const player = new Plyr('#player', { autoplay: false });
+        const countriesArr = ["Việt Nam", "Korean", "Trung Quốc", "Âu/Mỹ", "Nhật Bản"];
 
         async function init() {
             const params = new URLSearchParams(window.location.search);
             const idVd = params.get('id');
-            if (!idVd) {
-                document.getElementById('movie-title').innerText = "Không tìm thấy video!";
-                return;
-            }
+            if (!idVd) return;
 
             try {
                 const res = await fetch(`/api/get-link/${idVd}`);
-                if (!res.ok) throw new Error("Server error");
                 const data = await res.json();
 
                 if (data.link_goc) {
                     document.getElementById('movie-title').innerText = data.title;
-                    // Hiển thị lượt xem từ Database (mặc định 12,055,000+)
                     document.getElementById('main-view-count').innerText = data.views.toLocaleString();
                     
                     let poster = data.image || '';
@@ -100,52 +118,62 @@
 
                     player.source = {
                         type: 'video',
-                        sources: [{ 
-                            src: `/proxy?url=${encodeURIComponent(data.link_goc)}`, 
-                            type: 'video/mp4' 
-                        }],
+                        sources: [{ src: `/proxy?url=${encodeURIComponent(data.link_goc)}`, type: 'video/mp4' }],
                         poster: poster
                     };
 
-                    // Gọi hàm tải Top Trending
-                    loadTrending();
-                } else {
-                    document.getElementById('movie-title').innerText = "Video không tồn tại!";
+                    // Gọi 2 danh sách riêng biệt
+                    loadRelated(data.tags, idVd); // Phía dưới
+                    loadTrendingSide();           // Cột bên phải
                 }
-            } catch (err) { 
-                console.error("Lỗi tải video:", err);
-                document.getElementById('movie-title').innerText = "Lỗi kết nối máy chủ!";
-            }
+            } catch (err) { console.error(err); }
         }
 
-        async function loadTrending() {
+        // 1. Tải video cùng quốc gia (Phía dưới)
+        async function loadRelated(currentTags, currentId) {
             try {
-                // Gọi API lấy Top 5 video hot nhất dựa trên view và id
-                const res = await fetch('/api/top-trending');
-                const topVideos = await res.json();
+                const res = await fetch('/api/videos');
+                const allVideos = await res.json();
+                const currentCountry = currentTags.find(t => countriesArr.includes(t)) || "";
                 
-                const grid = document.getElementById('related-grid');
-                if (topVideos.length === 0) {
-                    grid.innerHTML = "<p>Đang cập nhật danh sách hot...</p>";
-                    return;
-                }
+                const related = allVideos.filter(v => 
+                    v.id_vd.toString() !== currentId.toString() && 
+                    v.hag_tag && v.hag_tag.includes(currentCountry)
+                ).slice(0, 8);
 
-                grid.innerHTML = topVideos.map(v => {
+                const grid = document.getElementById('related-grid');
+                grid.innerHTML = related.map(v => {
                     let img = v.image_vd;
-                    if (img && !img.includes('catbox.moe')) {
-                        img = `/proxy-img?url=${encodeURIComponent(img)}`;
-                    }
+                    if (img && !img.includes('catbox.moe')) img = `/proxy-img?url=${encodeURIComponent(img)}`;
                     return `
                         <div class="rel-card" onclick="location.href='/video?id=${v.id_vd}'">
                             <img src="${img}" onerror="this.src='https://placehold.co/300x180?text=XNHAU'">
                             <p>${v.title}</p>
-                            <p class="rel-views">👁️ ${v.views.toLocaleString()} lượt xem</p>
-                        </div>
-                    `;
+                        </div>`;
                 }).join('');
-            } catch (e) { 
-                console.error("Lỗi tải đề xuất:", e); 
-            }
+            } catch (e) { console.error(e); }
+        }
+
+        // 2. Tải video Hot nhất (Cột bên phải)[cite: 3]
+        async function loadTrendingSide() {
+            try {
+                const res = await fetch('/api/top-trending');
+                const topVideos = await res.json();
+                
+                const sidebar = document.getElementById('trending-sidebar');
+                sidebar.innerHTML = topVideos.map(v => {
+                    let img = v.image_vd;
+                    if (img && !img.includes('catbox.moe')) img = `/proxy-img?url=${encodeURIComponent(img)}`;
+                    return `
+                        <div class="side-card" onclick="location.href='/video?id=${v.id_vd}'">
+                            <img src="${img}">
+                            <div class="side-info">
+                                <p>${v.title}</p>
+                                <span>👁️ ${v.views.toLocaleString()}</span>
+                            </div>
+                        </div>`;
+                }).join('');
+            } catch (e) { console.error(e); }
         }
 
         window.onload = init;
