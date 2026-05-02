@@ -17,7 +17,9 @@
 
         /* Video Container */
         .container { width: 95%; max-width: 850px; margin: 10px auto; }
-        h1 { font-size: 20px; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 15px; }
+        h1 { font-size: 20px; margin-bottom: 5px; border-left: 4px solid var(--primary); padding-left: 15px; }
+        .view-info { color: #888; font-size: 13px; margin: 0 0 15px 15px; display: flex; align-items: center; gap: 5px; }
+
         .video-wrapper { border-radius: 12px; overflow: hidden; background: #000; border: 1px solid #222; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
 
         /* Related Videos */
@@ -25,22 +27,21 @@
         .related-title { font-size: 18px; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
         .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
         
-        .rel-card { background: var(--surface); border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #222; transition: 0.3s; }
+        .rel-card { background: var(--surface); border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #222; transition: 0.3s; position: relative; }
         .rel-card:hover { border-color: var(--primary); transform: translateY(-5px); }
         .rel-card img { width: 100%; height: 110px; object-fit: cover; }
-        .rel-card p { padding: 8px; margin: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rel-card p { padding: 8px 8px 2px; margin: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+        .rel-views { padding: 0 8px 8px; margin: 0; font-size: 11px; color: #666; }
 
         @media (max-width: 768px) {
             .container, .related-section { max-width: 100%; }
             .related-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
-        /* Plyr Custom Color */
         .plyr { --plyr-color-main: var(--primary); border-radius: 12px; }
     </style>
 
     <script>
-        /* ANTI-DEBUG (Đã làm gọn để tránh treo script load dữ liệu) */
         document.addEventListener('contextmenu', e => e.preventDefault());
         window.addEventListener('keydown', e => {
             if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
@@ -57,20 +58,22 @@
 
     <div class="container">
         <h1 id="movie-title">Đang kết nối server...</h1>
+        <div class="view-info">
+            👁️ <span id="main-view-count">...</span> lượt xem
+        </div>
         <div class="video-wrapper">
             <video id="player" playsinline controls crossorigin="anonymous"></video>
         </div>
     </div>
 
     <div class="related-section">
-        <div class="related-title">CÓ THỂ BẠN CŨNG THÍCH</div>
+        <div class="related-title">VIDEO XEM NHIỀU NHẤT</div>
         <div class="related-grid" id="related-grid"></div>
     </div>
 
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
     <script>
         const player = new Plyr('#player', { autoplay: false });
-        const countriesArr = ["Việt Nam", "Korean", "Trung Quốc", "Âu/Mỹ", "Nhật Bản"];
 
         async function init() {
             const params = new URLSearchParams(window.location.search);
@@ -81,21 +84,20 @@
             }
 
             try {
-                // Gọi API lấy link video (Sử dụng đường dẫn tương đối /api/...)
                 const res = await fetch(`/api/get-link/${idVd}`);
                 if (!res.ok) throw new Error("Server error");
                 const data = await res.json();
 
                 if (data.link_goc) {
                     document.getElementById('movie-title').innerText = data.title;
+                    // Hiển thị lượt xem từ Database (mặc định 12,055,000+)
+                    document.getElementById('main-view-count').innerText = data.views.toLocaleString();
                     
-                    // Xử lý Poster qua proxy nếu cần
                     let poster = data.image || '';
                     if (poster && !poster.includes('catbox.moe')) {
                         poster = `/proxy-img?url=${encodeURIComponent(poster)}`;
                     }
 
-                    // Thiết lập nguồn video qua Proxy Backend
                     player.source = {
                         type: 'video',
                         sources: [{ 
@@ -105,8 +107,8 @@
                         poster: poster
                     };
 
-                    // Tải video liên quan
-                    loadRelated(data.tags, idVd);
+                    // Gọi hàm tải Top Trending
+                    loadTrending();
                 } else {
                     document.getElementById('movie-title').innerText = "Video không tồn tại!";
                 }
@@ -116,26 +118,19 @@
             }
         }
 
-        async function loadRelated(currentTags, currentId) {
+        async function loadTrending() {
             try {
-                const res = await fetch('/api/videos');
-                const allVideos = await res.json();
+                // Gọi API lấy Top 5 video hot nhất dựa trên view và id
+                const res = await fetch('/api/top-trending');
+                const topVideos = await res.json();
                 
-                // Tìm quốc gia để lọc phim liên quan
-                const currentCountry = currentTags.find(t => countriesArr.includes(t)) || "";
-                
-                const related = allVideos.filter(v => 
-                    v.id_vd.toString() !== currentId.toString() && 
-                    v.hag_tag && v.hag_tag.includes(currentCountry)
-                ).slice(0, 6);
-
                 const grid = document.getElementById('related-grid');
-                if (related.length === 0) {
-                    grid.innerHTML = "<p>Không có video liên quan.</p>";
+                if (topVideos.length === 0) {
+                    grid.innerHTML = "<p>Đang cập nhật danh sách hot...</p>";
                     return;
                 }
 
-                grid.innerHTML = related.map(v => {
+                grid.innerHTML = topVideos.map(v => {
                     let img = v.image_vd;
                     if (img && !img.includes('catbox.moe')) {
                         img = `/proxy-img?url=${encodeURIComponent(img)}`;
@@ -144,11 +139,12 @@
                         <div class="rel-card" onclick="location.href='/video?id=${v.id_vd}'">
                             <img src="${img}" onerror="this.src='https://placehold.co/300x180?text=XNHAU'">
                             <p>${v.title}</p>
+                            <p class="rel-views">👁️ ${v.views.toLocaleString()} lượt xem</p>
                         </div>
                     `;
                 }).join('');
             } catch (e) { 
-                console.error("Lỗi tải video liên quan:", e); 
+                console.error("Lỗi tải đề xuất:", e); 
             }
         }
 

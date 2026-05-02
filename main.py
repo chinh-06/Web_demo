@@ -5,13 +5,12 @@ from datetime import datetime
 from fastapi import FastAPI, Request, Query, Response
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, String, DateTime
+from sqlalchemy import create_engine, Column, String, DateTime, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # --- CẤU HÌNH DATABASE ---
 DATABASE_URL = os.environ.get("DATABASE_URL")
-# Sửa lỗi nhỏ của SQLAlchemy với Postgres nếu link bắt đầu bằng postgres://
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -19,13 +18,21 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Định nghĩa bảng lưu IP
+# --- ĐỊNH NGHĨA CÁC BẢNG (MODELS) ---
+
+# 1. Bảng lưu IP khách truy cập
 class VisitorLog(Base):
     __tablename__ = "visitor_logs"
-    ip = Column(String, primary_key=True, index=True) # IP là duy nhất
+    ip = Column(String, primary_key=True, index=True)
     last_visit = Column(DateTime, default=datetime.now)
 
-# Tự động tạo bảng khi khởi chạy
+# 2. Bảng lưu lượt xem từng video
+class VideoView(Base):
+    __tablename__ = "video_views"
+    id_vd = Column(String, primary_key=True, index=True)
+    view_count = Column(Integer, default=12055000) # Mặc định khởi tạo 12 triệu lượt xem
+
+# Tự động tạo bảng trên Database của Render
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="XNHAU API Server")
@@ -46,6 +53,8 @@ def get_local_data():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+# --- ROUTES GIAO DIỆN ---
+
 @app.get("/")
 async def read_index():
     return FileResponse("trangchu.html")
@@ -54,32 +63,77 @@ async def read_index():
 async def read_video():
     return FileResponse("trangvideo.html")
 
-# API Lấy danh sách video + Lưu IP vào Database
+# --- API HỆ THỐNG ---
+
+# Lấy danh sách video trang chủ + Ghi log IP khách
 @app.get("/api/videos")
 async def get_videos(request: Request):
-    # 1. Lấy IP thực của khách qua Proxy Render
     client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(',')[0]
-    
-    # 2. Thực hiện lưu vào Database
     db = SessionLocal()
     try:
         visitor = db.query(VisitorLog).filter(VisitorLog.ip == client_ip).first()
         if visitor:
-            # Nếu IP đã có, cập nhật thời gian ghé thăm mới nhất
             visitor.last_visit = datetime.now()
         else:
-            # Nếu IP mới, tạo bản ghi mới
             new_visitor = VisitorLog(ip=client_ip, last_visit=datetime.now())
             db.add(new_visitor)
         db.commit()
     except Exception as e:
-        print(f"Lỗi ghi Database: {e}")
+        print(f"Lỗi Database IP: {e}")
     finally:
         db.close()
-        
     return get_local_data()
 
-# API để bạn kiểm tra danh sách IP (Dành riêng cho bạn)
+# Lấy chi tiết video + Tăng lượt xem (Cộng dồn vào 12.055.000)
+@app.get("/api/get-link/{id_vd}")
+async def get_link(id_vd: str):
+    videos = get_local_data()
+    video = next((v for v in videos if str(v["id_vd"]) == str(id_vd)), None)
+    if not video: return {"error": "404"}
+
+    db = SessionLocal()
+    current_views = 12055000
+    try:
+        view_rec = db.query(VideoView).filter(VideoView.id_vd == id_vd).first()
+        if not view_rec:
+            # Nếu lần đầu xem, khởi tạo số lượt xem mặc định + 1
+            view_rec = VideoView(id_vd=id_vd, view_count=12055001)
+            db.add(view_rec)
+        else:
+            view_rec.view_count += 1
+        db.commit()
+        current_views = view_rec.view_count
+    except Exception as e:
+        print(f"Lỗi Database View: {e}")
+    finally:
+        db.close()
+
+    return {
+        "link_goc": video.get("source_url"), 
+        "title": video.get("title"),
+        "image": video.get("image_vd"),
+        "tags": video.get("hag_tag", []),
+        "views": current_views
+    }
+
+# API Đề xuất: Lấy Top 5 video xem nhiều nhất (Tie-break: ID nhỏ hiện trước)
+@app.get("/api/top-trending")
+async def get_top_trending():
+    db = SessionLocal()
+    # Sắp xếp: lượt xem GIẢM DẦN, sau đó ID TĂNG DẦN
+    top_records = db.query(VideoView).order_by(VideoView.view_count.desc(), VideoView.id_vd.asc()).limit(5).all()
+    db.close()
+
+    all_v = get_local_data()
+    result = []
+    for rec in top_records:
+        v_meta = next((v for v in all_v if str(v["id_vd"]) == str(rec.id_vd)), None)
+        if v_meta:
+            v_meta["views"] = rec.view_count
+            result.append(v_meta)
+    return result
+
+# Kiểm tra log IP (Chế độ Admin)
 @app.get("/api/check-ip-logs")
 async def check_ip_logs():
     db = SessionLocal()
@@ -87,13 +141,7 @@ async def check_ip_logs():
     db.close()
     return [{"ip": log.ip, "time": log.last_visit} for log in logs]
 
-# --- GIỮ NGUYÊN CÁC HÀM PROXY VIDEO/IMG PHÍA DƯỚI ---
-@app.get("/api/get-link/{id_vd}")
-async def get_link(id_vd: str):
-    videos = get_local_data()
-    video = next((v for v in videos if str(v["id_vd"]) == str(id_vd)), None)
-    if not video: return {"error": "404"}
-    return {"link_goc": video.get("source_url"), "title": video.get("title"), "image": video.get("image_vd"), "tags": video.get("hag_tag", [])}
+# --- PROXY CHUYÊN DỤNG ---
 
 @app.get("/proxy")
 async def proxy_video(request: Request, url: str = Query(...)):
