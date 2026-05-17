@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <title>XNHAU - Xem Phim Hay</title>
     <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root { --bg: #0c0d12; --card: #14161f; --primary: #ff8866; --text: #f1f1f1; }
-        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; -webkit-user-drag: none; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; }
         
         /* Header */
         header { position: sticky; top: 0; z-index: 100; background: var(--bg); padding: 20px 40px; border-bottom: 1px solid #222; text-align: center; }
@@ -28,41 +29,50 @@
         }
         .tag-list.show { display: flex; animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
-
         .cat-item { background: #2a2d3e; color: #aaa; font-size: 12px; padding: 5px 12px; border-radius: 15px; cursor: pointer; transition: 0.2s; border: 1px solid #444; }
         .cat-item:hover, .cat-item.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-        /* Video Grid (3 Columns) */
-        .main-content { padding: 40px; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto; }
+        /* --- LAYOUT CHÍNH (Chia cột) --- */
+        .main-container { display: flex; max-width: 1300px; margin: 40px auto; padding: 0 20px; gap: 30px; }
+        
+        /* Cột bên trái: Danh sách phim (75%) */
+        .content-area { flex: 7.5; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
         .card { background: var(--card); border-radius: 12px; overflow: hidden; cursor: pointer; transition: 0.4s; border: 1px solid #222; }
         .card:hover { transform: translateY(-10px); border-color: var(--primary); box-shadow: 0 10px 30px rgba(255, 136, 102, 0.2); }
-        .card img { width: 100%; height: 210px; object-fit: cover; background: #222; display: block; }
-        .card-info { padding: 18px; }
-        .card-info h3 { margin: 0; font-size: 16px; color: #fff; line-height: 1.5; height: 48px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .card img { width: 100%; height: 180px; object-fit: cover; background: #222; display: block; }
+        .card-info { padding: 15px; }
+        .card-info h3 { margin: 0; font-size: 14px; color: #fff; height: 42px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+        /* Cột bên phải: Trending (25%) */
+        .sidebar-area { flex: 2.5; min-width: 280px; }
+        .sidebar-title { font-size: 16px; color: var(--primary); font-weight: bold; margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 10px; }
+        .sidebar-list { display: flex; flex-direction: column; gap: 15px; }
+        
+        .side-card { display: flex; gap: 10px; background: var(--card); border-radius: 8px; padding: 8px; cursor: pointer; border: 1px solid #222; transition: 0.2s; }
+        .side-card:hover { border-color: var(--primary); background: #1e2130; }
+        .side-card img { width: 100px; height: 60px; object-fit: cover; border-radius: 4px; }
+        .side-info { flex: 1; min-width: 0; }
+        .side-info p { margin: 0; font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .side-info span { font-size: 10px; color: #666; display: block; margin-top: 5px; }
 
         /* Pagination */
-        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 40px; padding-bottom: 50px; }
-        .page-btn { background: #1c1f2b; color: #aaa; border: 1px solid #333; padding: 10px 18px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .page-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 40px; }
+        .page-btn { background: #1c1f2b; color: #aaa; border: 1px solid #333; padding: 8px 14px; border-radius: 5px; cursor: pointer; font-size: 13px; }
         .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
+        /* Loading Animation */
         .img-loading { background: linear-gradient(90deg, #14161f 25%, #1c1f2b 50%, #14161f 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
         @keyframes loading { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-        @media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        /* Responsive */
+        @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 900px) { 
+            .main-container { flex-direction: column; } 
+            .sidebar-area { width: 100%; }
+        }
         @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
     </style>
-
-    <script>
-        /* --- ANTI-DEBUG --- */
-        document.addEventListener('contextmenu', e => e.preventDefault());
-        document.onkeydown = e => {
-            if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) || (e.ctrlKey && e.keyCode == 85)) return false;
-        };
-        // Tạm thời comment dòng debugger nếu bạn muốn tự kiểm tra lỗi F12, khi xong thì hãy mở lại
-        // setInterval(() => { (function() { (function a() { try { (function b(i) { if (('' + (i / i)).length !== 1 || i % 20 === 0) { (function() {}).constructor('debugger')(); } else { debugger; } b(++i); }(0)); } catch (e) { setTimeout(a, 5000); } })() })(); }, 1000);
-    </script>
 </head>
 <body>
 
@@ -81,9 +91,17 @@
         </div>
     </header>
 
-    <div class="main-content">
-        <div class="grid" id="video-grid"></div>
-        <div class="pagination" id="pagination"></div>
+    <div class="main-container">
+        <div class="content-area">
+            <div class="grid" id="video-grid"></div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+
+        <div class="sidebar-area">
+            <div class="sidebar-title">🔥 XEM NHIỀU NHẤT</div>
+            <div id="trending-sidebar" class="sidebar-list">
+                </div>
+        </div>
     </div>
 
     <script>
@@ -95,7 +113,7 @@
 
         function resetHome() {
             localStorage.clear();
-            window.location.href = '/'; // Sửa từ trangchu.html thành /
+            window.location.href = '/';
         }
 
         function toggleDropdown(id) {
@@ -103,6 +121,29 @@
             document.getElementById(id).classList.toggle('show');
         }
 
+        // 1. Tải và hiển thị cột Trending bên phải
+        async function loadTrending() {
+            try {
+                const res = await fetch('/api/top-trending');
+                const topVideos = await res.json();
+                const sidebar = document.getElementById('trending-sidebar');
+                
+                sidebar.innerHTML = topVideos.map(v => {
+                    let img = v.image_vd;
+                    if (img && !img.includes('catbox.moe')) img = `/proxy-img?url=${encodeURIComponent(img)}`;
+                    return `
+                        <div class="side-card" onclick="location.href='/video?id=${v.id_vd}'">
+                            <img src="${img}" onerror="this.src='https://placehold.co/100x60?text=XNHAU'">
+                            <div class="side-info">
+                                <p>${v.title}</p>
+                                <span>👁️ ${v.views.toLocaleString()}</span>
+                            </div>
+                        </div>`;
+                }).join('');
+            } catch (e) { console.error("Lỗi tải trending:", e); }
+        }
+
+        // 2. Hiển thị Grid danh sách chính
         function renderGrid() {
             const grid = document.getElementById('video-grid');
             const start = (currentPage - 1) * vPerPage;
@@ -112,15 +153,12 @@
             grid.innerHTML = display.length === 0 ? `<p style="grid-column: 1/-1; text-align: center; color: #666;">Chưa có dữ liệu...</p>` :
             display.map(v => {
                 let img = v.image_vd;
-                if (img && !img.includes('catbox.moe')) {
-                    // SỬA: Dùng đường dẫn tương đối /proxy-img
-                    img = `/proxy-img?url=${encodeURIComponent(img)}`;
-                }
-                // SỬA: Chuyển hướng sang /video thay vì trangvideo.html
-                return `<div class="card" onclick="location.href='/video?id=${v.id_vd}'">
-                            <img src="${img}" class="img-loading" onerror="this.src='https://placehold.co/600x400?text=XNHAU'" onload="this.classList.remove('img-loading')">
-                            <div class="card-info"><h3>${v.title}</h3></div>
-                        </div>`;
+                if (img && !img.includes('catbox.moe')) img = `/proxy-img?url=${encodeURIComponent(img)}`;
+                return `
+                    <div class="card" onclick="location.href='/video?id=${v.id_vd}'">
+                        <img src="${img}" class="img-loading" onerror="this.src='https://placehold.co/600x400?text=XNHAU'" onload="this.classList.remove('img-loading')">
+                        <div class="card-info"><h3>${v.title}</h3></div>
+                    </div>`;
             }).join('');
             renderPagination();
         }
@@ -147,7 +185,6 @@
             currentPage = 1;
             localStorage.setItem('selectedTag', tag);
             localStorage.setItem('savedPage', 1);
-
             document.querySelectorAll('.filter-btn, .cat-item').forEach(i => i.classList.remove('active'));
             if (tag === 'all') {
                 document.getElementById('btn-all').classList.add('active');
@@ -164,38 +201,36 @@
         async function init() {
             const genreList = document.getElementById('genre-list');
             const countryList = document.getElementById('country-list');
-            
             const savedTag = localStorage.getItem('selectedTag') || 'all';
             currentPage = parseInt(localStorage.getItem('savedPage')) || 1;
 
             try {
-                // ĐÃ DÙNG đường dẫn tương đối /api/videos
+                // Tải dữ liệu toàn bộ
                 const res = await fetch('/api/videos');
                 allVideos = await res.json();
                 
+                // Tạo danh sách tag động
                 const tags = new Set();
                 allVideos.forEach(v => { if (v.hag_tag) v.hag_tag.forEach(t => tags.add(t)); });
-
                 tags.forEach(tag => {
                     const tagEl = document.createElement('div');
                     tagEl.className = 'cat-item' + (tag === savedTag ? ' active' : '');
                     tagEl.innerText = tag;
                     tagEl.onclick = (e) => { e.stopPropagation(); filterByTag(tag, tagEl); };
-                    
                     if (countriesArr.includes(tag)) countryList.appendChild(tagEl);
                     else genreList.appendChild(tagEl);
                 });
 
+                // Lọc ban đầu
                 if (savedTag === 'all') {
                     document.getElementById('btn-all').classList.add('active');
                     currentFilteredVideos = allVideos;
                 } else {
-                    const parent = countriesArr.includes(savedTag) ? 'label-country' : 'label-genre';
-                    document.getElementById(parent).classList.add('active');
                     currentFilteredVideos = allVideos.filter(v => v.hag_tag && v.hag_tag.includes(savedTag));
                 }
                 
                 renderGrid();
+                loadTrending(); // Tải cột bên phải
             } catch (err) { console.error(err); }
         }
 
