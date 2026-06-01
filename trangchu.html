@@ -16,11 +16,15 @@
 
         .header-right { display: flex; gap: 15px; align-items: center; }
         
-        /* Thanh tìm kiếm */
-        .search-wrapper { position: relative; }
-        #search-input { width: 250px; padding: 10px 20px; border-radius: 20px; border: 1px solid #333; background: #1c1f2b; color: #fff; font-size: 14px; outline: none; transition: 0.3s; }
+/* Thanh tìm kiếm */
+        .search-wrapper { position: relative; display: flex; align-items: center; }
+        #search-input { width: 250px; padding: 10px 40px 10px 20px; border-radius: 20px; border: 1px solid #333; background: #1c1f2b; color: #fff; font-size: 14px; outline: none; transition: 0.3s; }
         #search-input:focus { border-color: var(--primary); width: 300px; box-shadow: 0 0 15px rgba(255, 136, 102, 0.1); background: #2a2d3e; }
         #search-input::placeholder { color: #888; }
+        
+        /* Icon Kính lúp */
+        .search-icon { position: absolute; right: 15px; cursor: pointer; color: #888; font-size: 16px; transition: 0.3s; }
+        .search-icon:hover { color: var(--primary); transform: scale(1.1); }
 
         /* Lọc quốc gia (Vẫn giữ dropdown cho gọn header) */
         .filter-group { position: relative; }
@@ -113,7 +117,8 @@
         
         <div class="header-right">
             <div class="search-wrapper">
-                <input type="text" id="search-input" placeholder="🔍 Nhập tên phim..." oninput="searchVideo()">
+                <input type="text" id="search-input" placeholder="Nhập tên phim..." onkeydown="checkEnter(event)">
+                <span class="search-icon" onclick="searchVideo()" title="Tìm kiếm">🔍</span>
             </div>
 
             <div class="filter-group">
@@ -179,6 +184,13 @@
             window.location.href = url.toString();
         }
 
+       // --- HÀM BẮT SỰ KIỆN ENTER ---
+        function checkEnter(event) {
+            if (event.key === 'Enter') {
+                searchVideo(); // Gọi hàm tìm kiếm khi ấn Enter
+            }
+        }
+
         // --- TÌM KIẾM ---
         function searchVideo() {
             const keyword = document.getElementById('search-input').value.toLowerCase().trim();
@@ -188,11 +200,10 @@
             document.getElementById('label-country').classList.remove('active');
             
             if (keyword === "") {
-                // Nếu xóa ô tìm kiếm, render lại đúng trạng thái trên URL
                 applyCurrentTagFilter();
             } else {
                 currentFilteredVideos = allVideos.filter(v => v.title && v.title.toLowerCase().includes(keyword));
-                currentPage = 1; // Bắt đầu hiện từ trang 1 khi tìm kiếm
+                currentPage = 1; 
                 renderGrid();
             }
         }
