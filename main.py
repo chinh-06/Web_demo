@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, String, DateTime, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-
+from fastapi.responses import StreamingResponse, FileResponse
 # --- CẤU HÌNH DATABASE ---
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
@@ -173,3 +173,8 @@ async def proxy_image(url: str = Query(...)):
             resp = await client.get(url, headers={"User-Agent": USER_AGENT})
             return Response(content=resp.content, media_type=resp.headers.get("Content-Type", "image/png"))
         except: return Response(status_code=500)
+
+
+@app.get("/logo.png")
+async def read_logo():
+    return FileResponse("logo.png")
