@@ -145,12 +145,15 @@
     <script>
         let allVideos = []; 
         let currentFilteredVideos = [];
-        let currentPage = 1;
-        const vPerPage = 12; // Tăng lên 12 phim 1 trang cho đẹp
+        const vPerPage = 12; 
         const countriesArr = ["Việt Nam", "Korean", "Trung Quốc", "Âu/Mỹ", "Nhật Bản"];
 
+        // --- ĐỌC THÔNG TIN TỪ URL (Làm cho mỗi thể loại như một trang riêng) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentTag = urlParams.get('tag') || 'all';
+        let currentPage = parseInt(urlParams.get('page')) || 1;
+
         function resetHome() {
-            localStorage.clear();
             window.location.href = '/';
         }
 
@@ -159,22 +162,52 @@
             document.getElementById(id).classList.toggle('show');
         }
 
+        // --- HÀM CHUYỂN "TRANG" THEO THỂ LOẠI / QUỐC GIA ---
+        function filterByTag(tag) {
+            if (tag === 'all') {
+                window.location.href = '/'; // Về trang chủ gốc
+            } else {
+                // Thay đổi URL để trình duyệt load lại trang ứng với tag đó
+                window.location.href = '/?tag=' + encodeURIComponent(tag);
+            }
+        }
+
+        // --- HÀM CHUYỂN SỐ TRANG (1, 2, 3...) ---
+        function changePage(p) { 
+            const url = new URL(window.location);
+            url.searchParams.set('page', p); // Thêm ?page=2 vào URL hiện tại
+            window.location.href = url.toString();
+        }
+
         // --- TÌM KIẾM ---
         function searchVideo() {
             const keyword = document.getElementById('search-input').value.toLowerCase().trim();
             
-            // Bỏ chọn tất cả filter
+            // Xóa highlight của các nút khi đang tìm kiếm
             document.querySelectorAll('.genre-card, .cat-item').forEach(i => i.classList.remove('active'));
             document.getElementById('label-country').classList.remove('active');
             
-            currentPage = 1;
-            localStorage.setItem('savedPage', 1);
-
             if (keyword === "") {
-                document.getElementById('btn-all-genre').classList.add('active');
-                currentFilteredVideos = allVideos;
+                // Nếu xóa ô tìm kiếm, render lại đúng trạng thái trên URL
+                applyCurrentTagFilter();
             } else {
                 currentFilteredVideos = allVideos.filter(v => v.title && v.title.toLowerCase().includes(keyword));
+                currentPage = 1; // Bắt đầu hiện từ trang 1 khi tìm kiếm
+                renderGrid();
+            }
+        }
+
+        // Áp dụng bộ lọc dựa trên URL hiện tại
+        function applyCurrentTagFilter() {
+            if (currentTag === 'all') {
+                const btnAll = document.getElementById('btn-all-genre');
+                if(btnAll) btnAll.classList.add('active');
+                currentFilteredVideos = allVideos;
+            } else {
+                if (countriesArr.includes(currentTag)) {
+                    document.getElementById('label-country').classList.add('active');
+                }
+                currentFilteredVideos = allVideos.filter(v => v.hag_tag && v.hag_tag.includes(currentTag));
             }
             renderGrid();
         }
@@ -190,7 +223,7 @@
                     let img = v.image_vd;
                     if (img && !img.includes('catbox.moe')) img = `/proxy-img?url=${encodeURIComponent(img)}`;
                     return `
-                        <div class="side-card" onclick="location.href='/video?id=${v.id_vd}'">
+                        <div class="side-card" onclick="window.location.href='/video?id=${v.id_vd}'">
                             <img src="${img}" onerror="this.src='https://placehold.co/100x60?text=XNHAU'">
                             <div class="side-info">
                                 <p>${v.title}</p>
@@ -201,33 +234,11 @@
             } catch (e) { console.error("Lỗi tải trending:", e); }
         }
 
-        // --- LỌC THEO TAG ---
-        function filterByTag(tag, el) {
-            document.getElementById('search-input').value = ""; // Xóa text tìm kiếm
-            currentPage = 1;
-            localStorage.setItem('selectedTag', tag);
-            localStorage.setItem('savedPage', 1);
-            
-            // Xóa class active của tất cả
-            document.querySelectorAll('.genre-card, .cat-item').forEach(i => i.classList.remove('active'));
-            document.getElementById('label-country').classList.remove('active');
-
-            if (tag === 'all') {
-                document.getElementById('btn-all-genre').classList.add('active');
-                currentFilteredVideos = allVideos;
-            } else {
-                el.classList.add('active');
-                if (countriesArr.includes(tag)) {
-                    document.getElementById('label-country').classList.add('active');
-                }
-                currentFilteredVideos = allVideos.filter(v => v.hag_tag && v.hag_tag.includes(tag));
-            }
-            renderGrid();
-        }
-
         // --- RENDER GRID ---
         function renderGrid() {
             const grid = document.getElementById('video-grid');
+            
+            // Lọc danh sách theo số trang hiện tại
             const start = (currentPage - 1) * vPerPage;
             const end = start + vPerPage;
             const display = currentFilteredVideos.slice(start, end);
@@ -237,7 +248,7 @@
                 let img = v.image_vd;
                 if (img && !img.includes('catbox.moe')) img = `/proxy-img?url=${encodeURIComponent(img)}`;
                 return `
-                    <div class="card" onclick="location.href='/video?id=${v.id_vd}'">
+                    <div class="card" onclick="window.location.href='/video?id=${v.id_vd}'">
                         <img src="${img}" onerror="this.src='https://placehold.co/600x400?text=XNHAU'">
                         <div class="card-info"><h3>${v.title}</h3></div>
                     </div>`;
@@ -256,19 +267,10 @@
             el.innerHTML = html;
         }
 
-        function changePage(p) { 
-            currentPage = p; 
-            localStorage.setItem('savedPage', p); 
-            renderGrid(); 
-            window.scrollTo({ top: 0, behavior: 'smooth' }); 
-        }
-
-        // --- INIT ---
+        // --- INIT (Chạy đầu tiên khi vào web) ---
         async function init() {
             const genreSlider = document.getElementById('genre-slider');
             const countryList = document.getElementById('country-list');
-            const savedTag = localStorage.getItem('selectedTag') || 'all';
-            currentPage = parseInt(localStorage.getItem('savedPage')) || 1;
 
             try {
                 const res = await fetch('/api/videos');
@@ -277,35 +279,23 @@
                 const tags = new Set();
                 allVideos.forEach(v => { if (v.hag_tag) v.hag_tag.forEach(t => tags.add(t)); });
                 
-                // Phân loại tag
                 tags.forEach(tag => {
                     if (countriesArr.includes(tag)) {
-                        // Nhét vào Dropdown Quốc gia
                         const tagEl = document.createElement('div');
-                        tagEl.className = 'cat-item' + (tag === savedTag ? ' active' : '');
+                        tagEl.className = 'cat-item' + (tag === currentTag ? ' active' : '');
                         tagEl.innerText = tag;
-                        tagEl.onclick = (e) => { e.stopPropagation(); filterByTag(tag, tagEl); };
+                        tagEl.onclick = (e) => { e.stopPropagation(); filterByTag(tag); };
                         countryList.appendChild(tagEl);
                     } else {
-                        // Nhét vào Slider Thể Loại mới
                         const cardEl = document.createElement('div');
-                        cardEl.className = 'genre-card' + (tag === savedTag ? ' active' : '');
+                        cardEl.className = 'genre-card' + (tag === currentTag ? ' active' : '');
                         cardEl.innerText = tag;
-                        cardEl.onclick = () => filterByTag(tag, cardEl);
+                        cardEl.onclick = () => filterByTag(tag);
                         genreSlider.appendChild(cardEl);
                     }
                 });
 
-                // Khởi tạo hiển thị
-                if (savedTag === 'all') {
-                    document.getElementById('btn-all-genre').classList.add('active');
-                    currentFilteredVideos = allVideos;
-                } else {
-                    if (countriesArr.includes(savedTag)) document.getElementById('label-country').classList.add('active');
-                    currentFilteredVideos = allVideos.filter(v => v.hag_tag && v.hag_tag.includes(savedTag));
-                }
-                
-                renderGrid();
+                applyCurrentTagFilter();
                 loadTrending();
             } catch (err) { console.error(err); }
         }
