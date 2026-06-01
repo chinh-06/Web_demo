@@ -55,7 +55,7 @@
         .genre-slider::-webkit-scrollbar { display: none; /* Chrome/Safari */ }
 
         .genre-card {
-            flex: 0 0 auto; /* Không cho phép thẻ bị bóp méo */
+            flex: 0 0 auto; 
             min-width: 140px; height: 65px;
             background: linear-gradient(145deg, #1c1f2b, #14161f);
             border-radius: 10px;
@@ -63,10 +63,27 @@
             font-size: 15px; font-weight: bold; color: #aaa;
             cursor: pointer; border: 1px solid #222; transition: 0.3s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: relative; /* THÊM DÒNG NÀY ĐỂ CĂN GÓC CHO SỐ */
         }
         .genre-card:hover { transform: translateY(-3px); color: #fff; border-color: #555; }
         .genre-card.active { border-color: var(--primary); color: #fff; background: linear-gradient(145deg, rgba(255,136,102,0.2), #14161f); box-shadow: 0 5px 15px rgba(255, 136, 102, 0.15); }
 
+        /* --- THÊM KHỐI CSS NÀY CHO CON SỐ --- */
+        .genre-count {
+            position: absolute;
+            bottom: 5px;
+            right: 6px;
+            font-size: 10px;
+            color: #888;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-weight: normal;
+        }
+        .genre-card.active .genre-count {
+            background: var(--primary);
+            color: #fff;
+        }
         /* --- LAYOUT CHÍNH (Chia cột) --- */
         .main-container { display: flex; max-width: 1300px; margin: 20px auto 40px; padding: 0 20px; gap: 30px; }
         
@@ -108,6 +125,42 @@
             .sidebar-area { width: 100%; margin-top: 20px; } 
         }
         @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+        /* --- FOOTER --- */
+        footer {
+            background-color: var(--bg);
+            border-top: 1px solid #222;
+            padding: 40px 20px;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .footer-tags {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px 25px;
+            margin-bottom: 20px;
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .footer-tags a {
+            color: var(--primary); /* Sử dụng màu cam chủ đạo của trang */
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+        .footer-tags a:hover {
+            opacity: 0.7;
+            text-decoration: underline;
+        }
+        .footer-desc {
+            color: #888;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -128,10 +181,13 @@
         </div>
     </header>
 
-    <div class="genre-section">
+<div class="genre-section">
         <h2>THỂ LOẠI</h2>
         <div class="genre-slider" id="genre-slider">
-            <div class="genre-card active" id="btn-all-genre" onclick="filterByTag('all', this)">Tất cả</div>
+            <div class="genre-card active" id="btn-all-genre" onclick="filterByTag('all')">
+                Tất cả
+                <span class="genre-count" id="count-all">0</span>
+            </div>
             </div>
     </div>
 
@@ -146,6 +202,22 @@
             <div id="trending-sidebar" class="sidebar-list"></div>
         </div>
     </div>
+    <footer>
+        <div class="footer-tags">
+            <a href="/?tag=Không Che">Không Che</a>
+            <a href="/?tag=Doogy">Doogy</a>
+            <a href="/?tag=Gái xinh">Gái Xinh</a>
+            <a href="/?tag=Không lông">Không Lông</a>
+            <a href="/?tag=Vú to">Vú To</a>
+            <a href="/?tag=Đít bự">Đít Bự</a>
+            
+            <a href="/?tag=Việt Nam">Việt Nam</a>
+            <a href="/?tag=Nhật Bản">Nhật Bản</a>
+            <a href="/?tag=Trung Quốc">Trung Quốc</a>
+            <a href="/?tag=Korean">Hàn Quốc</a>
+            <a href="/?tag=Âu/Mỹ">Âu Mỹ</a>
+        </div>
+    </footer>
 
     <script>
         let allVideos = []; 
@@ -278,7 +350,7 @@
             el.innerHTML = html;
         }
 
-        // --- INIT (Chạy đầu tiên khi vào web) ---
+// --- INIT (Chạy đầu tiên khi vào web) ---
         async function init() {
             const genreSlider = document.getElementById('genre-slider');
             const countryList = document.getElementById('country-list');
@@ -287,21 +359,34 @@
                 const res = await fetch('/api/videos');
                 allVideos = await res.json();
                 
+                // Cập nhật tổng số video cho nút "Tất cả"
+                document.getElementById('count-all').innerText = allVideos.length;
+
                 const tags = new Set();
                 allVideos.forEach(v => { if (v.hag_tag) v.hag_tag.forEach(t => tags.add(t)); });
                 
                 tags.forEach(tag => {
+                    // Đếm số lượng video chứa tag hiện tại
+                    const count = allVideos.filter(v => v.hag_tag && v.hag_tag.includes(tag)).length;
+
                     if (countriesArr.includes(tag)) {
+                        // Thêm số lượng vào Dropdown Quốc gia (Tùy chọn)
                         const tagEl = document.createElement('div');
                         tagEl.className = 'cat-item' + (tag === currentTag ? ' active' : '');
-                        tagEl.innerText = tag;
+                        tagEl.innerText = `${tag} (${count})`;
                         tagEl.onclick = (e) => { e.stopPropagation(); filterByTag(tag); };
                         countryList.appendChild(tagEl);
                     } else {
+                        // Thêm số lượng vào Slider Thể loại
                         const cardEl = document.createElement('div');
                         cardEl.className = 'genre-card' + (tag === currentTag ? ' active' : '');
-                        cardEl.innerText = tag;
                         cardEl.onclick = () => filterByTag(tag);
+                        
+                        // Dùng innerHTML để chèn tên thể loại và con số
+                        cardEl.innerHTML = `
+                            ${tag}
+                            <span class="genre-count">${count}</span>
+                        `;
                         genreSlider.appendChild(cardEl);
                     }
                 });
@@ -310,7 +395,6 @@
                 loadTrending();
             } catch (err) { console.error(err); }
         }
-
         window.onclick = e => { if (!e.target.matches('.filter-btn')) document.querySelectorAll('.tag-list').forEach(l => l.classList.remove('show')); };
         window.onload = init;
     </script>
