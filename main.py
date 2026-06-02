@@ -70,9 +70,9 @@ async def read_index():
 async def read_video():
     return FileResponse("trangvideo.html")
 
-@app.get("/logo.png")
+@app.get("/logo_last.png")
 async def read_logo():
-    return FileResponse("logo.png")
+    return FileResponse("logo_last.png")
 
 # --- API HỆ THỐNG ---
 
