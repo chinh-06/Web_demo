@@ -8,13 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, String, DateTime, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from fastapi.responses import StreamingResponse, FileResponse
-# --- CẤU HÌNH DATABASE ---
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(DATABASE_URL)
+# --- CẤU HÌNH DATABASE (CHỐNG SẬP VỚI SQLITE) ---
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL:
+    # Sửa lỗi nhỏ của SQLAlchemy với Postgres trên Render
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    engine = create_engine(DATABASE_URL)
+else:
+    # NẾU RENDER KHÔNG NHẬN DATABASE_URL -> TỰ ĐỘNG DÙNG SQLITE (Database cục bộ)
+    DATABASE_URL = "sqlite:///./dulieu_xnhau.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -32,7 +39,7 @@ class VideoView(Base):
     id_vd = Column(String, primary_key=True, index=True)
     view_count = Column(Integer, default=12055000) # Mặc định khởi tạo 12 triệu lượt xem
 
-# Tự động tạo bảng trên Database của Render
+# Tự động tạo bảng trên Database
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="XNHAU API Server")
@@ -53,7 +60,7 @@ def get_local_data():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# --- ROUTES GIAO DIỆN ---
+# --- ROUTES GIAO DIỆN & FILE TĨNH ---
 
 @app.get("/")
 async def read_index():
@@ -62,6 +69,10 @@ async def read_index():
 @app.get("/video")
 async def read_video():
     return FileResponse("trangvideo.html")
+
+@app.get("/logo.png")
+async def read_logo():
+    return FileResponse("logo.png")
 
 # --- API HỆ THỐNG ---
 
@@ -173,8 +184,3 @@ async def proxy_image(url: str = Query(...)):
             resp = await client.get(url, headers={"User-Agent": USER_AGENT})
             return Response(content=resp.content, media_type=resp.headers.get("Content-Type", "image/png"))
         except: return Response(status_code=500)
-
-
-@app.get("/logo.png")
-async def read_logo():
-    return FileResponse("logo.png")
